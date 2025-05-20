@@ -1,0 +1,23 @@
+# Build outputs
+dist/
+build/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Cache directories
+.cache/
+
+# Configuration files
+tsconfig.json
+tsconfig.*.json
+
+# Misc files
+.DS_Store
+npm-debug.log
+yarn-error.log
+.env*
+*.pem
+*.crx
+*.xpi 

@@ -11,12 +11,28 @@
   },
   "scripts": {
     "start": "echo \"Add start script in future tasks\" && exit 0",
-    "test": "echo \"Add test script in future tasks\" && exit 0"
+    "test": "echo \"Add test script in future tasks\" && exit 0",
+    "type-check": "tsc --noEmit",
+    "type-check:extension": "tsc -p tsconfig.extension.json --noEmit",
+    "type-check:service": "tsc -p tsconfig.service.json --noEmit",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build:extension": "tsc -p tsconfig.extension.json",
+    "build:service": "tsc -p tsconfig.service.json",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,scss}\""
   },
   "keywords": [
     "browser-extension",
     "naval",
     "auction",
     "form-automation"
-  ]
+  ],
+  "devDependencies": {
+    "@types/chrome": "0.0.323",
+    "@types/node": "22.15.19",
+    "@types/react": "19.1.4",
+    "@types/react-dom": "19.1.5",
+    "prettier": "3.2.4",
+    "typescript": "5.8.3"
+  }
 }

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist/extension",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": ["chrome"]
+  },
+  "include": [
+    "src/background/**/*.ts",
+    "src/content/**/*.ts",
+    "src/popup/**/*.ts",
+    "src/popup/**/*.tsx",
+    "src/components/**/*.ts",
+    "src/components/**/*.tsx",
+    "src/utils/**/*.ts"
+  ]
+}
