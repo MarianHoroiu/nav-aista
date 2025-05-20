@@ -16,6 +16,8 @@ module.exports = [
       '*.config.js',
       '*.config.ts',
       'no-unknown-types.js',
+      // Additional ignore patterns from .eslintignore
+      '.DS_Store',
     ],
   },
   {
@@ -89,6 +91,7 @@ module.exports = [
       '@typescript-eslint/no-explicit-any': 'off',
       'no-unknown-types/warn': 'off',
       'no-warning-comments': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
 ];

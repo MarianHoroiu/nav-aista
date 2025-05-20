@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Husky pre-push hook
+npm run type-check 
