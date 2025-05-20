@@ -1,0 +1,107 @@
+/**
+ * Options Component
+ * 
+ * This is the main entry point for the extension's options page.
+ * It will be rendered when the user accesses the extension's options.
+ */
+
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom/client';
+
+// This will be replaced with an actual component in task-07
+const Options: React.FC = () => {
+  const [settings, setSettings] = useState({
+    autoFill: true,
+    notifyNewAuctions: true,
+    filterKeywords: ''
+  });
+
+  const handleToggle = (key: keyof typeof settings) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const handleKeywordsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setSettings(prev => ({
+      ...prev,
+      filterKeywords: e.target.value
+    }));
+  };
+
+  const handleSave = () => {
+    // This would save settings to chrome.storage in a real implementation
+    console.log('Saving settings:', settings);
+    // chrome.storage.local.set({ preferences: settings });
+  };
+
+  return (
+    <div className="container mx-auto p-6 max-w-2xl">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold">Naval Auction Assistant - Options</h1>
+        <p className="text-gray-600">Configure your extension preferences</p>
+      </header>
+      <main className="bg-white p-6 rounded shadow">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-medium">Auto Fill Forms</h2>
+              <p className="text-sm text-gray-500">Automatically fill auction search forms</p>
+            </div>
+            <div className="form-switch">
+              <input 
+                type="checkbox" 
+                checked={settings.autoFill}
+                onChange={() => handleToggle('autoFill')}
+                className="toggle"
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-medium">Auction Notifications</h2>
+              <p className="text-sm text-gray-500">Get notified about new relevant auctions</p>
+            </div>
+            <div className="form-switch">
+              <input 
+                type="checkbox" 
+                checked={settings.notifyNewAuctions}
+                onChange={() => handleToggle('notifyNewAuctions')}
+                className="toggle"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="font-medium">Filter Keywords</h2>
+            <p className="text-sm text-gray-500">Enter keywords to filter auctions (one per line)</p>
+            <textarea
+              value={settings.filterKeywords}
+              onChange={handleKeywordsChange}
+              className="w-full p-2 border rounded h-32"
+              placeholder="Enter keywords..."
+            ></textarea>
+          </div>
+          
+          <div className="flex justify-end">
+            <button 
+              onClick={handleSave}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              Save Settings
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+// This will be implemented in task-07 when React is properly integrated
+// For now, this is just a placeholder
+// const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+// root.render(<Options />);
+
+export default Options; 

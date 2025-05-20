@@ -1,0 +1,37 @@
+/**
+ * Popup Component
+ *
+ * This is the main entry point for the extension's popup UI.
+ * It will be rendered when the user clicks on the extension icon.
+ */
+
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+
+// This will be replaced with an actual component in task-07
+const Popup: React.FC = () => {
+  return (
+    <div className="p-4">
+      <header className="mb-4">
+        <h1 className="text-xl font-bold">Naval Auction Assistant</h1>
+      </header>
+      <main>
+        <p className="mb-2">Welcome to Naval Auction Assistant</p>
+        <div className="flex flex-col gap-2">
+          <button className="bg-blue-500 text-white px-4 py-2 rounded">Search Auctions</button>
+          <button className="bg-gray-200 px-4 py-2 rounded">View Saved Auctions</button>
+        </div>
+      </main>
+      <footer className="mt-4 text-sm text-gray-500">
+        <p>Version 0.1.0</p>
+      </footer>
+    </div>
+  );
+};
+
+// This will be implemented in task-07 when React is properly integrated
+// For now, this is just a placeholder
+// const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+// root.render(<Popup />);
+
+export default Popup;
