@@ -1,17 +1,5 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-# Skip linting if there are no staged files
-if git diff --cached --quiet; then
-  exit 0
-fi
-
-# Only run ESLint on staged files to avoid issues
-FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.([jt]sx?|json)$' | grep -v "node_modules/")
-if [ -n "$FILES" ]; then
-  echo "Running ESLint on staged files..."
-  npx eslint $FILES --fix || true
-fi
-
-# Add any changes ESLint made
-git add -A 
+# Run lint-staged to handle linting and formatting of staged files
+npx lint-staged 

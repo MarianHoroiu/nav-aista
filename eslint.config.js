@@ -16,6 +16,9 @@ module.exports = [
       '*.config.js',
       '*.config.ts',
       'no-unknown-types.js',
+      // Webpack configurations
+      'webpack.*.js',
+      'webpack/**',
       // Additional ignore patterns from .eslintignore
       '.DS_Store',
     ],
@@ -75,7 +78,6 @@ module.exports = [
       'no-unknown-types/warn': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'react/prop-types': 'off',
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
   // Special configuration for test files

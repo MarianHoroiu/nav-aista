@@ -13,6 +13,11 @@ node_modules/
 tsconfig.json
 tsconfig.*.json
 
+# Documentation
+*.md
+docs/
+documentation/
+
 # Misc files
 .DS_Store
 npm-debug.log
