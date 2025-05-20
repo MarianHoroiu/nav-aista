@@ -5,6 +5,20 @@
  * It handles events and orchestrates the extension's functionality.
  */
 
+console.log('Background script loaded');
+
+// Example of using chrome extension API
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Extension installed');
+});
+
+// Listen for messages from content scripts
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  console.log('Message received in background', request);
+  sendResponse({ status: 'Received' });
+  return true;
+});
+
 // Listen for installation event
 chrome.runtime.onInstalled.addListener(details => {
   if (details.reason === 'install') {

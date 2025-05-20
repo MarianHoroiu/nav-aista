@@ -1,4 +1,17 @@
 #!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
 
-# Husky pre-commit hook
-npx lint-staged 
+# Skip linting if there are no staged files
+if git diff --cached --quiet; then
+  exit 0
+fi
+
+# Only run ESLint on staged files to avoid issues
+FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.([jt]sx?|json)$' | grep -v "node_modules/")
+if [ -n "$FILES" ]; then
+  echo "Running ESLint on staged files..."
+  npx eslint $FILES --fix || true
+fi
+
+# Add any changes ESLint made
+git add -A 

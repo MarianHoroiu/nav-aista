@@ -5,6 +5,18 @@
  * It can access and modify the DOM of the page.
  */
 
+console.log('Content script loaded');
+
+// Example of using chrome extension API
+chrome.runtime.sendMessage({ action: 'contentScriptLoaded' }, response => {
+  console.log('Response from background:', response);
+});
+
+// Example of DOM manipulation
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM fully loaded and parsed');
+});
+
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'analyzeAuctionPage') {
