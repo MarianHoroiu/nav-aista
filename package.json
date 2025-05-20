@@ -10,7 +10,11 @@
     "url": "git+https://github.com/your-org/naval-auction-assistant.git"
   },
   "scripts": {
-    "start": "echo \"Add start script in future tasks\" && exit 0",
+    "start": "webpack serve --config webpack.dev.js",
+    "watch": "webpack --watch --config webpack.dev.js",
+    "build": "npm run build:prod",
+    "build:dev": "webpack --config webpack.dev.js",
+    "build:prod": "webpack --config webpack.prod.js",
     "test": "echo \"Add test script in future tasks\" && exit 0",
     "type-check": "tsc --noEmit && tsc -p tsconfig.tests.json --noEmit",
     "type-check:extension": "tsc -p tsconfig.extension.json --noEmit",
@@ -23,8 +27,11 @@
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "check": "npm run type-check && npm run lint && npm run format:check",
-    "prepare": "husky",
-    "lint-staged": "lint-staged"
+    "prepare": "husky"
+  },
+  "overrides": {
+    "glob": "^9.3.5",
+    "rimraf": "^5.0.5"
   },
   "keywords": [
     "browser-extension",
@@ -33,27 +40,47 @@
     "form-automation"
   ],
   "devDependencies": {
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.11",
     "@types/chrome": "0.0.323",
     "@types/node": "22.15.19",
     "@types/react": "19.1.4",
     "@types/react-dom": "19.1.5",
     "@typescript-eslint/eslint-plugin": "8.32.1",
     "@typescript-eslint/parser": "8.32.1",
+    "autoprefixer": "10.4.21",
+    "clean-webpack-plugin": "^4.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.9.1",
+    "dotenv-webpack": "^8.0.1",
     "eslint": "9.27.0",
     "eslint-config-prettier": "10.1.5",
     "eslint-import-resolver-typescript": "4.3.5",
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-prettier": "5.4.0",
     "eslint-plugin-react": "7.37.5",
+    "html-loader": "^4.2.0",
+    "html-webpack-plugin": "^5.6.0",
     "husky": "9.1.7",
     "lint-staged": "16.0.0",
+    "mini-css-extract-plugin": "^2.7.7",
+    "postcss": "^8.4.33",
+    "postcss-loader": "^7.3.4",
+    "postcss-preset-env": "^9.3.0",
     "prettier": "3.2.4",
-    "typescript": "5.8.3"
+    "react-refresh": "^0.14.0",
+    "sass": "^1.70.0",
+    "sass-loader": "^13.3.3",
+    "style-loader": "^3.3.4",
+    "ts-loader": "^9.5.1",
+    "typescript": "5.8.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "webpack-merge": "^5.10.0"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "pre-push": "npm run type-check"
-    }
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "tailwindcss": "3.3.5"
   }
 }
