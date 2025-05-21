@@ -6,10 +6,18 @@
  */
 
 // Import modules
+import {
+  backgroundMessageBus,
+  MessageCategory,
+  SettingsAction,
+  DocumentAction,
+  RequestMessage,
+  initBackgroundMessaging,
+} from '../shared/messaging';
+
 import { DownloadFile, initializeDownloads, downloadFile } from './downloads';
 import eventEmitter from './events';
 import { initializeLifecycle } from './lifecycle';
-import { initializeMessaging, registerMessageHandler, MessageAction } from './messaging';
 import { initializeStorage, getStorageItem, setStorageItem } from './storage';
 
 console.log('Naval Auction Assistant background service worker starting...');
@@ -22,7 +30,7 @@ async function initializeBackgroundService(): Promise<void> {
     // Initialize all services in order
     initializeStorage();
     initializeLifecycle();
-    initializeMessaging();
+    initBackgroundMessaging();
     initializeDownloads();
 
     // Register global error handler
@@ -55,74 +63,48 @@ function registerGlobalErrorHandler(): void {
  */
 function registerMessageHandlers(): void {
   // Get preferences
-  registerMessageHandler(MessageAction.GET_PREFERENCES, (_message, _sender, sendResponse) => {
-    getStorageItem('preferences')
-      .then(preferences => {
-        sendResponse({
-          success: true,
-          data: preferences || {},
-        });
-      })
-      .catch(error => {
-        sendResponse({
-          success: false,
-          error: `Failed to get preferences: ${error}`,
-        });
-      });
-
-    return true; // Async response
+  backgroundMessageBus.registerHandler(MessageCategory.SETTINGS, SettingsAction.GET, async () => {
+    try {
+      const preferences = await getStorageItem('preferences');
+      return {
+        success: true,
+        data: preferences || {},
+      };
+    } catch (error) {
+      throw new Error(`Failed to get preferences: ${error}`);
+    }
   });
 
   // Set preferences
-  registerMessageHandler(MessageAction.SET_PREFERENCES, (message, _sender, sendResponse) => {
-    if (!message.payload || typeof message.payload !== 'object') {
-      sendResponse({
-        success: false,
-        error: 'Invalid preferences data',
-      });
-      return false;
+  backgroundMessageBus.registerHandler(
+    MessageCategory.SETTINGS,
+    SettingsAction.SET,
+    async (message: RequestMessage) => {
+      if (!message.data || typeof message.data !== 'object') {
+        throw new Error('Invalid preferences data');
+      }
+
+      await setStorageItem('preferences', message.data);
+      return { success: true };
     }
-
-    setStorageItem('preferences', message.payload)
-      .then(() => {
-        sendResponse({ success: true });
-      })
-      .catch(error => {
-        sendResponse({
-          success: false,
-          error: `Failed to save preferences: ${error}`,
-        });
-      });
-
-    return true; // Async response
-  });
+  );
 
   // Download document
-  registerMessageHandler(MessageAction.DOWNLOAD_DOCUMENT, (message, _sender, sendResponse) => {
-    if (!message.payload || typeof message.payload !== 'object') {
-      sendResponse({
-        success: false,
-        error: 'Invalid download data',
-      });
-      return false;
+  backgroundMessageBus.registerHandler(
+    MessageCategory.DOCUMENT,
+    DocumentAction.FETCH,
+    async (message: RequestMessage) => {
+      if (!message.data || typeof message.data !== 'object') {
+        throw new Error('Invalid download data');
+      }
+
+      const downloadId = await downloadFile(message.data as DownloadFile);
+      return {
+        success: true,
+        data: { downloadId },
+      };
     }
-
-    downloadFile(message.payload as DownloadFile)
-      .then(downloadId => {
-        sendResponse({
-          success: true,
-          data: { downloadId },
-        });
-      })
-      .catch(error => {
-        sendResponse({
-          success: false,
-          error: `Failed to download document: ${error}`,
-        });
-      });
-
-    return true; // Async response
-  });
+  );
 
   // Example of handling custom events from content scripts
   eventEmitter.on('contentScript:ready', (data: { tabId: number }) => {

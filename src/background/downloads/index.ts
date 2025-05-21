@@ -8,7 +8,6 @@
  */
 
 import eventEmitter from '../events';
-import { Message, MessageAction, MessageResponse } from '../messaging';
 import { getStorageItem, setStorageItem } from '../storage';
 
 // Download events
@@ -48,9 +47,11 @@ export interface DownloadStatus {
 
 // Message data from event emitter
 interface MessageEventData {
-  message: Message;
+  message: {
+    payload?: unknown;
+  };
   sender: chrome.runtime.MessageSender;
-  sendResponse: (response: MessageResponse) => void;
+  sendResponse: (response: unknown) => void;
 }
 
 // Collection of active downloads
@@ -99,7 +100,7 @@ async function checkAndRequestPermissions(): Promise<void> {
  */
 function registerMessageHandlers(): void {
   // Listen for download messages on the event bus
-  eventEmitter.on(`message:${MessageAction.DOWNLOAD_DOCUMENT}`, async (data: MessageEventData) => {
+  eventEmitter.on('message:downloadDocument', async (data: MessageEventData) => {
     const { message, sendResponse } = data;
 
     if (message.payload && typeof message.payload === 'object') {

@@ -1,195 +1,219 @@
 /**
- * Messaging System for Background Service Worker
+ * Background Service Worker Messaging
  *
- * This module handles message passing between different components of the extension:
- * - Popup <-> Background
- * - Content Scripts <-> Background
- * - Options Page <-> Background
+ * Handles messaging for the background service worker, including setting up message handlers,
+ * forwarding messages between components, and handling system events.
  */
 
-import eventEmitter from '../events';
-
-// Message action types
-export enum MessageAction {
-  GET_PREFERENCES = 'getPreferences',
-  SET_PREFERENCES = 'setPreferences',
-  FETCH_DOCUMENT = 'fetchDocument',
-  DOWNLOAD_DOCUMENT = 'downloadDocument',
-  SCAN_PAGE = 'scanPage',
-  UPDATE_STATUS = 'updateStatus',
-}
-
-// Message types
-export interface Message {
-  action: MessageAction | string;
-  payload?: unknown;
-}
-
-// Response to a message
-export interface MessageResponse {
-  success: boolean;
-  data?: unknown;
-  error?: string;
-}
-
-// Message handler function type
-export type MessageHandler = (
-  message: Message,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response: MessageResponse) => void
-) => boolean | void;
-
-// Collection of message handlers
-const messageHandlers: Record<string, MessageHandler> = {};
+import {
+  backgroundMessageBus,
+  MessageCategory,
+  SystemAction,
+  AuctionAction,
+  DocumentAction,
+  SettingsAction,
+  UIAction,
+  AuthAction,
+  SystemEvent,
+  eventEmitter,
+  MessageSource,
+} from '../../shared/messaging';
+import { ErrorCode, MessagingError } from '../../shared/messaging/errors';
 
 /**
- * Initialize the messaging system
+ * Initialize the background messaging system
  */
-export function initializeMessaging(): void {
-  // Set up the message listener
-  chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-    console.log('Background received message:', message);
+export function initBackgroundMessaging(): void {
+  // Initialize the message bus
+  backgroundMessageBus.init();
 
-    // Process message
-    return processMessage(message, sender, sendResponse);
-  });
-
-  // Listen for external messages (from other extensions or websites)
-  chrome.runtime.onMessageExternal?.addListener((message: Message, sender, sendResponse) => {
-    console.log('Background received external message:', message);
-
-    // Process external message with additional security checks
-    if (isAllowedExternalSender(sender)) {
-      return processMessage(message, sender, sendResponse);
-    }
-
-    // Rejected due to security concerns
-    sendResponse({
-      success: false,
-      error: 'External message rejected due to security policy',
-    });
-    return false;
-  });
-}
-
-/**
- * Register a message handler for a specific action
- * @param action The action to handle
- * @param handler The handler function
- */
-export function registerMessageHandler(action: string, handler: MessageHandler): void {
-  messageHandlers[action] = handler;
-}
-
-/**
- * Process an incoming message
- * @param message The message to process
- * @param sender The sender information
- * @param sendResponse Function to send a response
- * @returns True if the response will be sent asynchronously
- */
-function processMessage(
-  message: Message,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response: MessageResponse) => void
-): boolean {
-  // Check if we have a registered handler for this action
-  if (messageHandlers[message.action]) {
-    try {
-      // Call the handler
-      return messageHandlers[message.action](message, sender, sendResponse) || false;
-    } catch (error) {
-      console.error(`Error processing message ${message.action}:`, error);
-      sendResponse({
-        success: false,
-        error: `Internal error processing message: ${error instanceof Error ? error.message : String(error)}`,
-      });
-      return false;
-    }
+  // Set debug mode in development
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  if (isDevelopment) {
+    backgroundMessageBus.setDebug(true);
   }
 
-  // Emit event for this message action
-  eventEmitter.emit(`message:${message.action}`, {
-    message,
-    sender,
-    sendResponse,
-  });
+  // Register system message handlers
+  registerSystemHandlers();
 
-  // No specific handler, send default response
-  sendResponse({
-    success: false,
-    error: `No handler registered for action: ${message.action}`,
-  });
+  // Register feature-specific handlers
+  registerAuctionHandlers();
+  registerDocumentHandlers();
+  registerSettingsHandlers();
+  registerUIHandlers();
+  registerAuthHandlers();
 
-  return false;
+  // Report initialization
+  console.log('[Background] Messaging system initialized');
+  eventEmitter.emit(SystemEvent.EXTENSION_ENABLED, { timestamp: Date.now() });
 }
 
 /**
- * Check if an external message sender is allowed
- * @param sender The message sender
- * @returns True if the sender is allowed
+ * Register system message handlers
  */
-function isAllowedExternalSender(sender: chrome.runtime.MessageSender): boolean {
-  // Implementation would depend on security requirements
-  // For example, check against a whitelist of allowed origins
-  const allowedOrigins = ['https://example.com'];
-  return sender.origin ? allowedOrigins.includes(sender.origin) : false;
-}
+function registerSystemHandlers(): void {
+  // Ping handler for connection testing
+  backgroundMessageBus.registerHandler(MessageCategory.SYSTEM, SystemAction.PING, async () => {
+    return { timestamp: Date.now(), source: MessageSource.BACKGROUND };
+  });
 
-/**
- * Send a message to a specific tab
- * @param tabId The ID of the tab to send the message to
- * @param message The message to send
- * @returns Promise resolving to the response
- */
-export function sendMessageToTab(tabId: number, message: Message): Promise<MessageResponse> {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.sendMessage(tabId, message, (response: MessageResponse) => {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve(response);
-      }
-    });
+  // Get extension status
+  backgroundMessageBus.registerHandler(
+    MessageCategory.SYSTEM,
+    SystemAction.GET_STATUS,
+    async () => {
+      return {
+        isEnabled: true,
+        version: chrome.runtime.getManifest().version,
+        timestamp: Date.now(),
+      };
+    }
+  );
+
+  // Set debug mode
+  backgroundMessageBus.registerHandler(
+    MessageCategory.SYSTEM,
+    SystemAction.SET_DEBUG,
+    async message => {
+      const data = (message.data as { enabled: boolean }) || { enabled: false };
+      const enabled = data.enabled;
+      backgroundMessageBus.setDebug(enabled);
+
+      // Notify about debug mode change
+      eventEmitter.emit(SystemEvent.DEBUG_MODE_CHANGED, { enabled });
+
+      return { success: true, debugEnabled: enabled };
+    }
+  );
+
+  // Log message
+  backgroundMessageBus.registerHandler(MessageCategory.SYSTEM, SystemAction.LOG, async message => {
+    const { level = 'info', content } = message.data as { level?: string; content: string };
+
+    switch (level) {
+      case 'error':
+        console.error(`[Log] ${content}`);
+        break;
+      case 'warn':
+        console.warn(`[Log] ${content}`);
+        break;
+      case 'debug':
+        console.debug(`[Log] ${content}`);
+        break;
+      case 'info':
+      default:
+        console.log(`[Log] ${content}`);
+        break;
+    }
+
+    return { success: true };
   });
 }
 
 /**
- * Send a message to all content scripts in active tabs
- * @param message The message to send
- * @returns Promise resolving to an array of responses
+ * Register auction-related message handlers
  */
-export function broadcastToContentScripts(message: Message): Promise<MessageResponse[]> {
-  return new Promise(resolve => {
-    chrome.tabs.query({ active: true }, tabs => {
-      const responses: MessageResponse[] = [];
-      let pendingResponses = tabs.length;
+function registerAuctionHandlers(): void {
+  // Fetch auction list handler
+  backgroundMessageBus.registerHandler(
+    MessageCategory.AUCTION,
+    AuctionAction.FETCH_LIST,
+    async () => {
+      // This is a placeholder - actual implementation would fetch auctions
+      // from the e-licitatie.ro website or API
+      return {
+        auctions: [],
+        timestamp: Date.now(),
+      };
+    }
+  );
 
-      if (pendingResponses === 0) {
-        resolve(responses);
-        return;
-      }
+  // Other auction handlers would be registered here
+}
 
-      // Send message to each tab
-      tabs.forEach(tab => {
-        if (tab.id !== undefined) {
-          sendMessageToTab(tab.id, message)
-            .then(response => {
-              responses.push(response);
-            })
-            .catch(error => {
-              console.error(`Error sending message to tab ${tab.id}:`, error);
-            })
-            .finally(() => {
-              pendingResponses--;
-              if (pendingResponses === 0) {
-                resolve(responses);
-              }
-            });
-        } else {
-          pendingResponses--;
-        }
+/**
+ * Register document-related message handlers
+ */
+function registerDocumentHandlers(): void {
+  // Document fetch handler
+  backgroundMessageBus.registerHandler(
+    MessageCategory.DOCUMENT,
+    DocumentAction.FETCH,
+    async message => {
+      // This is a placeholder - actual implementation would fetch document data
+      // from the e-licitatie.ro website or API
+      const data = (message.data as { documentId?: string }) || {};
+      throw new MessagingError(ErrorCode.ACTION_FAILED, 'Document fetch is not implemented yet', {
+        documentId: data.documentId,
       });
-    });
-  });
+    }
+  );
+
+  // Other document handlers would be registered here
 }
+
+/**
+ * Register settings-related message handlers
+ */
+function registerSettingsHandlers(): void {
+  // Get settings handler
+  backgroundMessageBus.registerHandler(MessageCategory.SETTINGS, SettingsAction.GET, async () => {
+    // This is a placeholder - actual implementation would get settings from storage
+    return {
+      theme: 'light',
+      notifications: true,
+      autoRefresh: false,
+    };
+  });
+
+  // Other settings handlers would be registered here
+}
+
+/**
+ * Register UI-related message handlers
+ */
+function registerUIHandlers(): void {
+  // Update badge handler
+  backgroundMessageBus.registerHandler(MessageCategory.UI, UIAction.UPDATE_BADGE, async message => {
+    const { text, backgroundColor } = message.data as {
+      text: string;
+      backgroundColor?: string;
+    };
+
+    await chrome.action.setBadgeText({ text });
+
+    if (backgroundColor) {
+      await chrome.action.setBadgeBackgroundColor({ color: backgroundColor });
+    }
+
+    return { success: true };
+  });
+
+  // Other UI handlers would be registered here
+}
+
+/**
+ * Register authentication-related message handlers
+ */
+function registerAuthHandlers(): void {
+  // Check auth status handler
+  backgroundMessageBus.registerHandler(MessageCategory.AUTH, AuthAction.CHECK_STATUS, async () => {
+    // This is a placeholder - actual implementation would check auth status
+    return {
+      isLoggedIn: false,
+      username: null,
+    };
+  });
+
+  // Other auth handlers would be registered here
+}
+
+// For development environments
+declare const process: {
+  env: {
+    NODE_ENV: string;
+  };
+};
+
+// Export the initialized message bus
+export { backgroundMessageBus };
