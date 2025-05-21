@@ -1,8 +1,8 @@
 You are an excellent Software Architect and a great Project Manager, with high programming and software security skills.
 
-I need to create a template for task implementation documents.
+You need to create a template document for the task implementation.
 
-You have to create a new file to match the folder name. For example, if the folder name starts with `story-[01]-[story name]`, the file should be `task-[01]-[task number]-[task name].md`, where `[task number]` is the task number in the story file, including the brackets.
+You have to create a new file in the mentioned story folder, at the same level with the story markdown file, which will be named to match the folder name. For example, if the folder name starts with `story-[01]-[story name]`, the file should be `task-[01]-[task number]-[task name].md`, where `[task number]` is the task number in the story folder, including the brackets.
 
 The markdown file needs to contain the following information:
 
@@ -58,6 +58,8 @@ Story [STORY_NUMBER]: [STORY_TITLE]
 - [CRITERION_3]
 - [CRITERION_4]
 - [CRITERION_5]
+- [CRITERION_6]
+- [CRITERION_7]
 
 ## Testing Approach
 
@@ -116,6 +118,9 @@ Set up the repository structure with npm initialization and create a comprehensi
 - README includes setup instructions and usage guidelines
 - Package.json includes correct metadata and initial dependencies
 - .gitignore is properly configured for the project
+- running the `npm run check` command should not return any errors/warnings: if there are any, you need to fix them following the instructions from the error message and by reading the appropriate library/dependency documentation
+
+- running the `npm run build` command should not return any errors/warnings: if there are any, you need to fix them following the instructions from the error message and by reading the appropriate library/dependency documentation
 
 ## Testing Approach
 

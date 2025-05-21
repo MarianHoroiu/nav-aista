@@ -2,70 +2,64 @@
 
 ## Story Description
 
-As a developer, I need to establish the foundational components of the browser extension, including the background service worker, content scripts architecture, and basic UI framework. This will create the structural backbone for all future functionality of the Naval Auction Assistant.
+As a developer, I need to establish the foundational structure of the browser extension components to enable communication and functionality across different parts of the extension. This includes setting up the background service worker, content scripts, and React UI components to operate within the e-licitatie.ro environment.
 
 ## Acceptance Criteria
 
-- Background service worker is implemented with proper lifecycle management (install, update, uninstall)
-- Message handling system is established between all extension components
-- Content script architecture is developed with modular structure
-- DOM utilities specific to e-licitatie.ro are created
-- React UI components are set up following atomic design principles
-- Tailwind CSS is properly integrated for styling
-- Storage management utilities are functioning
-- Extension components are properly tested
+- Background service worker is implemented with event-based architecture
+- Content script architecture is developed with DOM utilities specific to e-licitatie.ro
+- React UI components are created following atomic design principles
+- Components can communicate with each other via a well-defined messaging system
+- DOM traversal utilities can adapt to varying attribute values
+- UI is responsive and properly integrates with Tailwind CSS
+- Component structure aligns with the architectural design in the documentation
 
 ## Story Tasks
 
-1. Implement background service worker:
-
+1. Implement Background Service Worker:
    - Create service worker with event-based architecture
-   - Implement lifecycle event handlers (install, update, uninstall)
-   - Set up message passing system for communication between components
-   - Implement basic error handling and logging
+   - Implement lifecycle management (install, update, uninstall)
+   - Set up message handling system between components
+   - Create storage management utilities
+   - Implement document download handling for PDF and archive files
 
-2. Develop content script architecture:
+2. Develop Content Script Architecture:
+   - Develop modular content script structure
+   - Implement DOM utilities for e-licitatie.ro
+   - Create site-specific detection and activation logic
+   - Build mutation observer for dynamic content
+   - Implement pattern-based CSS attribute selectors for dynamic section identification
+   - Create flexible DOM traversal utilities that can adapt to varying attribute values
 
-   - Create modular content script structure
-   - Implement DOM utilities specific to e-licitatie.ro
-   - Develop site-specific detection and activation logic
-   - Create mutation observer for dynamic content
-
-3. Build React UI components:
-
+3. Create React UI Components:
    - Set up Tailwind CSS integration
-   - Create component library following atomic design principles (atoms, molecules, organisms)
+   - Create component library following atomic design
    - Implement responsive popup interface
    - Develop settings management UI
+   - Build dedicated results dashboard component
+   - Create document viewer component with highlighting capabilities
+   - Implement analysis report interface
 
-4. Implement storage management:
-
-   - Create unified storage API wrapper
-   - Implement error handling and retry mechanisms
-   - Set up storage initialization on installation
-
-5. Create testing framework for components:
-   - Set up unit tests for background service worker
-   - Create tests for content script modules
-   - Implement UI component testing
+4. Establish Communication Layer:
+   - Create a messaging system for component communication
+   - Implement error handling for messaging
+   - Set up event listeners for state changes
+   - Create typed interfaces for message payloads
 
 ## Story Dependencies
 
-- Story-[01]-[project-initialization] must be completed
+- Story-01-Project-Initialization must be completed
 
 ## Story Risks
 
-- Manifest V3 restrictions may limit service worker capabilities
-- Communication between different extension components may be complex
-- React integration with extension contexts requires careful architecture
-- Chrome/Edge compatibility might present challenges
-- Content script interaction with e-licitatie.ro DOM may break with site updates
+- Complexity in creating DOM utilities that can adapt to e-licitatie.ro's dynamic structure
+- Challenges in establishing reliable communication between extension components
+- Potential issues with React integration in a browser extension context
+- Performance concerns with mutation observers and DOM traversal utilities
 
 ## Story Assumptions
 
-- The project follows the architecture outlined in documentation
-- React will be used for all UI components
-- Tailwind CSS will be used for styling
-- Browser extension will be compatible with Chrome and Edge
-- The extension will primarily interact with e-licitatie.ro website
-- TypeScript will be used for all component development
+- The project has been initialized with TypeScript, ESLint, and React as per Story-01
+- The e-licitatie.ro site structure has been adequately analyzed
+- Tailwind CSS is configured correctly for styling
+- Manifest V3 is being used for browser extension development 
