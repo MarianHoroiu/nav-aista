@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import { Card } from '../components/common';
+import { ThemeToggle } from '../components/common';
 import { AnalyzeDropdownsMessage, AnalyzeDropdownsResponse } from '../types/chrome-extension';
 
 // Interface for dropdown analysis results
@@ -19,20 +19,8 @@ interface DropdownAnalysis {
 }
 
 const Popup: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [dropdowns, setDropdowns] = useState<DropdownAnalysis[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    // Simulating a loading state
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-  };
 
   // Function to trigger dropdown analysis
   const analyzeDropdowns = () => {
@@ -67,29 +55,10 @@ const Popup: React.FC = () => {
 
   return (
     <div className="border-secondary-200 dark:border-secondary-800 rounded-lg px-4 py-4 space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Naval Auction Assistant</h1>
-
-      <Card>
-        <div className="p-4 space-y-2">
-          <h2 className="text-xl font-semibold">Search Auctions</h2>
-          <form onSubmit={handleSubmit} className="space-y-2">
-            <input
-              type="text"
-              placeholder="Enter keywords..."
-              className="w-full p-2 border rounded"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full p-2 bg-blue-600 text-white rounded disabled:bg-blue-300"
-            >
-              {loading ? 'Searching...' : 'Search'}
-            </button>
-          </form>
-        </div>
-      </Card>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Nav-AISTA</h1>
+        <ThemeToggle />
+      </div>
 
       <div className="mb-4">
         <button
@@ -97,7 +66,7 @@ const Popup: React.FC = () => {
           disabled={isAnalyzing}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
         >
-          {isAnalyzing ? 'Analyzing...' : 'Analyze Dropdowns'}
+          {isAnalyzing ? 'Analyzing...' : 'Analyze Page Form'}
         </button>
       </div>
 
@@ -128,13 +97,13 @@ const Popup: React.FC = () => {
       ) : (
         !isAnalyzing && (
           <div className="text-gray-600">
-            Click "Analyze Dropdowns" to scan the current page for dropdown elements.
+            {`Click "Analyze Form Page" to scan the current page form <Select /> elements.`}
           </div>
         )
       )}
 
       <footer className="mt-auto text-center text-sm text-secondary-500 dark:text-secondary-400 pt-2">
-        <p>Naval Auction Assistant v0.1.0</p>
+        <p>Naval AI Search Tool for Auctions v0.1.0</p>
       </footer>
     </div>
   );

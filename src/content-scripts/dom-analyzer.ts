@@ -55,9 +55,9 @@ export class DOMAnalyzer {
       let prevElement = selectElement.previousElementSibling;
       if (
         prevElement &&
-        (prevElement.tagName === 'LABEL' ||
-          prevElement.tagName === 'SPAN' ||
-          prevElement.tagName === 'DIV')
+        (prevElement.tagName === 'label' ||
+          prevElement.tagName === 'span' ||
+          prevElement.tagName === 'div')
       ) {
         title = prevElement.textContent?.trim() || '';
       }

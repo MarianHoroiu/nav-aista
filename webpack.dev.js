@@ -25,6 +25,7 @@ module.exports = merge(common, {
       directory: path.join(__dirname, 'dist'),
     },
     hot: true,
+    host: 'localhost', // Use localhost instead of 0.0.0.0
     port: 9000,
     devMiddleware: {
       writeToDisk: true, // Write files to disk so they can be loaded as an extension
