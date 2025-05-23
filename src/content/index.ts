@@ -5,37 +5,47 @@
  * It can access and modify the DOM of the page.
  */
 
-import {
-  PageType,
-  shouldActivate,
-  detectPageType,
-  determineActiveFeatures,
-  reportPageInformation,
-} from './detection';
+import { PageType, shouldActivate, detectPageType, reportPageInformation } from './detection';
 import * as dom from './dom';
 import * as observers from './observers';
 
 // Store active observers to clean up when needed
 const activeObservers: MutationObserver[] = [];
 
+// Listen for messages from the popup or background script
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === 'analyzeAuctionPage') {
+    const auctionData = extractAuctionData();
+    sendResponse({ success: true, data: auctionData });
+    return true;
+  }
+
+  // Handle the analyzeDropdowns message from popup
+  if (message.action === 'analyzeDropdowns') {
+    try {
+      const dropdowns = findAllDropdowns();
+      sendResponse({ dropdowns: dropdowns });
+    } catch (error) {
+      console.error('Content: Error analyzing dropdowns:', error);
+      sendResponse({ dropdowns: [] });
+    }
+    return true;
+  }
+
+  return true;
+});
+
 /**
  * Initialize the content script
  */
 function initialize(): void {
-  console.log('Naval Auction Assistant content script loaded');
-
   // Check if we should activate on this page
   if (!shouldActivate()) {
-    console.log('Content script not activating on this page');
     return;
   }
 
   // Report page information to background script
   reportPageInformation();
-
-  // Determine which features should be activated
-  const features = determineActiveFeatures();
-  console.log('Active features:', features);
 
   // Set up observers based on page type
   setupObservers();
@@ -43,12 +53,9 @@ function initialize(): void {
   // Request preferences from background script
   chrome.runtime.sendMessage({ action: 'getPreferences' }, preferences => {
     if (preferences?.autoFill) {
-      console.log('Auto-fill is enabled');
+      // Handle auto-fill if enabled
     }
   });
-
-  // Set up event listeners
-  setupEventListeners();
 }
 
 /**
@@ -67,8 +74,6 @@ function setupObservers(): void {
           // Check if we need to refresh page detection
           const currentPageInfo = detectPageType();
           if (currentPageInfo.type !== pageInfo.type) {
-            console.log(`Page type changed from ${pageInfo.type} to ${currentPageInfo.type}`);
-
             // Clean up old observers
             cleanupObservers();
 
@@ -180,33 +185,6 @@ function setupDocumentViewObservers(): void {
 }
 
 /**
- * Set up event listeners for user interactions
- */
-function setupEventListeners(): void {
-  // Listen for messages from the background script
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    console.log('Content script received message:', message);
-
-    if (message.action === 'analyzeAuctionPage') {
-      const auctionData = extractAuctionData();
-      sendResponse({ success: true, data: auctionData });
-      return true;
-    }
-
-    // Handle the analyzeDropdowns message from popup
-    if (message.action === 'analyzeDropdowns') {
-      console.log('Analyzing dropdowns from popup request');
-      const dropdowns = findAllDropdowns();
-      console.log('Found dropdowns:', dropdowns);
-      sendResponse({ dropdowns: dropdowns });
-      return true;
-    }
-
-    return true;
-  });
-}
-
-/**
  * Clean up all active observers
  */
 function cleanupObservers(): void {
@@ -308,47 +286,212 @@ function extractAuctionData(): Record<string, unknown> {
   };
 }
 
+// First, create a proper interface for the dropdown return type
+interface DropdownInfo {
+  title: string;
+  id: string;
+  name: string;
+  options: Array<{
+    value: string;
+    text: string;
+    selected: boolean;
+  }>;
+  isKendo?: boolean;
+}
+
 /**
  * Find all SELECT elements in the document and analyze them
- * Enhanced to work with Kendo UI components and complex DOM structures
+ * Uses a simpler approach to find associated labels
  */
-function findAllDropdowns(): Record<string, unknown>[] {
-  const selectElements = document.querySelectorAll('select');
-  console.log(`Found ${selectElements.length} raw select elements`);
+function findAllDropdowns(): DropdownInfo[] {
+  try {
+    // Find standard SELECT elements
+    const selectElements = document.querySelectorAll('select');
 
-  return Array.from(selectElements).map(select => {
-    const element = select as HTMLSelectElement;
-    const id = element.id;
-    const name = element.name;
+    // Convert NodeList to Array for easier manipulation
+    const dropdowns: DropdownInfo[] = Array.from(selectElements).map(select => {
+      const element = select as HTMLSelectElement;
+      const id = element.id || '';
+      const name = element.name || '';
 
-    // Try to find a label for this dropdown
-    const label = dom.findAssociatedLabel(element);
-    let title = label ? dom.getElementText(label) : '';
+      // Find the closest label - multiple strategies in order of priority
+      let label = '';
 
-    // Fallback to name or id if no title found
-    if (!title) {
-      title = name || id || 'Unnamed Dropdown';
-    }
+      // 1. Look for label with matching 'for' attribute if element has ID
+      if (id) {
+        const forLabel = document.querySelector(`label[for="${id}"]`);
+        if (forLabel) {
+          label = forLabel.textContent?.trim() || '';
+        }
+      }
 
-    // Get all options
-    const options = Array.from(element.options).map(option => ({
-      value: option.value,
-      text: option.text,
-      selected: option.selected,
-    }));
+      // 2. Look for a parent div container and find label within it
+      if (!label) {
+        // Find containing wrapper (common pattern in form layouts)
+        const parentContainer = element.closest(
+          '.form-group, .col, .col-md-3, .col-md-4, .col-md-6, .control-group, .form-field'
+        );
+        if (parentContainer) {
+          // Find label within the same container
+          const labelElement = parentContainer.querySelector('label');
+          if (labelElement) {
+            label = labelElement.textContent?.trim() || '';
+          }
+        }
+      }
 
-    // Log the found dropdown
-    console.log(
-      `Analyzed dropdown: ${title} (id: ${id}, name: ${name}, options: ${options.length})`
+      // 3. Look for preceding sibling label
+      if (!label) {
+        let previous = element.previousElementSibling;
+        while (previous && !label) {
+          if (previous.tagName === 'LABEL') {
+            label = previous.textContent?.trim() || '';
+          }
+          previous = previous.previousElementSibling;
+        }
+      }
+
+      // 4. Check for custom attributes
+      if (!label) {
+        // Try commonly used attributes for labeling
+        label =
+          element.getAttribute('aria-label') ||
+          element.getAttribute('placeholder') ||
+          element.getAttribute('title') ||
+          '';
+      }
+
+      // 5. Fallback to name or id with formatting if still no label
+      if (!label) {
+        if (name) {
+          // Format name: "firstName" -> "First Name"
+          label = name
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())
+            .replace(/_/g, ' ');
+        } else if (id) {
+          // Format id
+          label = id
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())
+            .replace(/_/g, ' ');
+        } else {
+          label = 'Unnamed Dropdown';
+        }
+      }
+
+      // Get all options
+      const options = Array.from(element.options).map(option => ({
+        value: option.value,
+        text: option.text,
+        selected: option.selected,
+      }));
+
+      return {
+        title: label,
+        id,
+        name,
+        options,
+      };
+    });
+
+    // Also look for Kendo UI dropdowns that might have hidden select elements
+    const kendoDropdowns = document.querySelectorAll(
+      '.k-combobox, .k-dropdown, .k-dropdownlist, .k-widget'
     );
 
-    return {
-      title,
-      id,
-      name,
-      options,
-    };
-  });
+    // If there are Kendo dropdowns, process them too
+    if (kendoDropdowns.length > 0) {
+      kendoDropdowns.forEach(kendoDropdown => {
+        // Find the hidden select element inside
+        const hiddenSelect = kendoDropdown.querySelector(
+          'select[style*="display: none"]'
+        ) as HTMLSelectElement;
+        if (!hiddenSelect) return; // Skip if no hidden select found
+
+        // Check if this select is already processed
+        const alreadyProcessed = dropdowns.some(
+          d => d.id === hiddenSelect.id || (hiddenSelect.name && d.name === hiddenSelect.name)
+        );
+        if (alreadyProcessed) return;
+
+        // Based on the example DOM structure, get label (typically preceding the Kendo widget)
+        let label = '';
+
+        // Method 1: Find parent container and get the label within it
+        const parentContainer = kendoDropdown.closest(
+          '.col-md-3, .col-md-4, .col-md-6, .col, .form-group, .form-field'
+        );
+        if (parentContainer) {
+          const labelElement = parentContainer.querySelector('label');
+          if (labelElement) {
+            label = labelElement.textContent?.trim() || '';
+          }
+        }
+
+        // Method 2: Look for preceding sibling label
+        if (!label) {
+          let previous = kendoDropdown.previousElementSibling;
+          while (previous && !label) {
+            if (previous.tagName === 'LABEL') {
+              label = previous.textContent?.trim() || '';
+              break;
+            }
+            previous = previous.previousElementSibling;
+          }
+        }
+
+        // Fallback to attributes or name/id
+        if (!label) {
+          label =
+            hiddenSelect.getAttribute('aria-label') ||
+            hiddenSelect.getAttribute('placeholder') ||
+            hiddenSelect.getAttribute('title') ||
+            hiddenSelect.getAttribute('k-ng-model') ||
+            hiddenSelect.name ||
+            hiddenSelect.id ||
+            'Kendo Dropdown';
+        }
+
+        // Get options - Kendo might not have populated options in the select yet
+        let options: Array<{ value: string; text: string; selected: boolean }> = [];
+
+        // Try to get options from the select element
+        if (hiddenSelect.options && hiddenSelect.options.length > 0) {
+          options = Array.from(hiddenSelect.options).map(option => ({
+            value: option.value,
+            text: option.text,
+            selected: option.selected,
+          }));
+        } else {
+          // If no options in select, try to find them in the Kendo widget
+          const kendoItems = kendoDropdown.querySelectorAll('.k-item');
+          if (kendoItems.length > 0) {
+            options = Array.from(kendoItems).map(item => ({
+              value: item.getAttribute('data-value') || '',
+              text: item.textContent?.trim() || '',
+              selected: item.classList.contains('k-state-selected'),
+            }));
+          }
+        }
+
+        const kendoInfo: DropdownInfo = {
+          title: label,
+          id: hiddenSelect.id || '',
+          name: hiddenSelect.name || '',
+          options,
+          isKendo: true,
+        };
+
+        dropdowns.push(kendoInfo);
+      });
+    }
+
+    return dropdowns;
+  } catch (error) {
+    console.error('Content: Error in findAllDropdowns:', error);
+    return [];
+  }
 }
 
 // Start initialization when the DOM is ready

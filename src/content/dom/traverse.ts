@@ -100,17 +100,72 @@ export function findNextSibling(startElement: Element, selector: string): Elemen
  * @returns The associated label element or null if not found
  */
 export function findAssociatedLabel(element: Element): HTMLLabelElement | null {
-  if (!element.id) {
-    return findNearestLabel(element);
+  // First priority: Check for label with 'for' attribute
+  if (element.id) {
+    const labelWithFor = document.querySelector(`label[for="${element.id}"]`) as HTMLLabelElement;
+    if (labelWithFor) {
+      return labelWithFor;
+    }
   }
 
-  // First, check for label with 'for' attribute
-  const labelWithFor = document.querySelector(`label[for="${element.id}"]`) as HTMLLabelElement;
-  if (labelWithFor) {
-    return labelWithFor;
+  // Second priority: If element is within a label
+  const parentLabel = findClosestParent(element, 'label', 3) as HTMLLabelElement;
+  if (parentLabel) {
+    return parentLabel;
   }
 
-  // If not found, try to find the nearest label
+  // Third priority: Look for preceding text nodes, div, span, or p elements
+  // that might be acting as labels (common in many UI frameworks)
+  const previousSibling = element.previousElementSibling;
+  if (previousSibling) {
+    if (previousSibling.tagName === 'LABEL') {
+      return previousSibling as HTMLLabelElement;
+    }
+    if (['SPAN', 'DIV', 'P', 'STRONG', 'B'].includes(previousSibling.tagName)) {
+      // Create a virtual label to return the text content
+      const virtualLabel = document.createElement('label');
+      virtualLabel.textContent = previousSibling.textContent;
+      return virtualLabel;
+    }
+  }
+
+  // Fourth priority: Look for parent with label as first child
+  const parent = element.parentElement;
+  if (parent) {
+    // First child is a label
+    if (parent.firstElementChild && parent.firstElementChild.tagName === 'LABEL') {
+      return parent.firstElementChild as HTMLLabelElement;
+    }
+
+    // First child is text wrapper (heading, paragraph, div, etc.)
+    if (
+      parent.firstElementChild &&
+      ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'DIV', 'SPAN'].includes(
+        parent.firstElementChild.tagName
+      ) &&
+      parent.firstElementChild !== element
+    ) {
+      // Create a virtual label with the text content
+      const virtualLabel = document.createElement('label');
+      virtualLabel.textContent = parent.firstElementChild.textContent;
+      return virtualLabel;
+    }
+
+    // Check for text node before the element
+    for (let i = 0; i < parent.childNodes.length; i++) {
+      const node = parent.childNodes[i];
+      if (node === element) break;
+
+      if (node.nodeType === Node.TEXT_NODE && node.textContent && node.textContent.trim()) {
+        // Create a virtual label with the text content
+        const virtualLabel = document.createElement('label');
+        virtualLabel.textContent = node.textContent.trim();
+        return virtualLabel;
+      }
+    }
+  }
+
+  // Fifth priority: Try other heuristics
   return findNearestLabel(element);
 }
 
@@ -120,28 +175,74 @@ export function findAssociatedLabel(element: Element): HTMLLabelElement | null {
  * @returns The nearest label element or null if not found
  */
 export function findNearestLabel(element: Element): HTMLLabelElement | null {
-  // Check if the element is within a label
-  const parentLabel = findClosestParent(element, 'label', 3) as HTMLLabelElement;
-  if (parentLabel) {
-    return parentLabel;
-  }
-
   // Check for a label within the same form group (common pattern in e-licitatie.ro)
-  const formGroup = findClosestParent(element, '.form-group', 3);
+  const formGroup = findClosestParent(element, '.form-group, .form-control, .input-group', 3);
   if (formGroup) {
-    return formGroup.querySelector('label') as HTMLLabelElement;
+    // Try to find an explicit label
+    const explicitLabel = formGroup.querySelector('label');
+    if (explicitLabel) {
+      return explicitLabel as HTMLLabelElement;
+    }
+
+    // Look for elements that might be acting as labels
+    const possibleLabel = formGroup.querySelector('span, div, p, h1, h2, h3, h4, h5, h6');
+    if (possibleLabel && possibleLabel !== element) {
+      // Create a virtual label
+      const virtualLabel = document.createElement('label');
+      virtualLabel.textContent = possibleLabel.textContent;
+      return virtualLabel;
+    }
   }
 
-  // Check previous sibling
-  const prevLabel = findPreviousSibling(element, 'label') as HTMLLabelElement;
-  if (prevLabel) {
-    return prevLabel;
+  // Check nearby elements with label-like classes
+  const labelWithClass = findClosestParent(element, '.label, .control-label, .form-label', 3);
+  if (labelWithClass) {
+    const virtualLabel = document.createElement('label');
+    virtualLabel.textContent = labelWithClass.textContent;
+    return virtualLabel;
   }
 
-  // Look at parent's first child for label
-  const parent = element.parentElement;
-  if (parent && parent.firstElementChild && parent.firstElementChild.tagName === 'LABEL') {
-    return parent.firstElementChild as HTMLLabelElement;
+  // Try aria-label and aria-labelledby attributes
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel) {
+    const virtualLabel = document.createElement('label');
+    virtualLabel.textContent = ariaLabel;
+    return virtualLabel;
+  }
+
+  const ariaLabelledBy = element.getAttribute('aria-labelledby');
+  if (ariaLabelledBy) {
+    const labelElement = document.getElementById(ariaLabelledBy);
+    if (labelElement) {
+      const virtualLabel = document.createElement('label');
+      virtualLabel.textContent = labelElement.textContent;
+      return virtualLabel;
+    }
+  }
+
+  // Last resort: check for a preceding heading or paragraph
+  let current = element.previousElementSibling;
+  while (current && current.nodeType === Node.ELEMENT_NODE) {
+    if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'DIV'].includes(current.tagName)) {
+      const virtualLabel = document.createElement('label');
+      virtualLabel.textContent = current.textContent;
+      return virtualLabel;
+    }
+    current = current.previousElementSibling;
+  }
+
+  // If still nothing found, check for placeholder as label
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement
+  ) {
+    const placeholder = element.getAttribute('placeholder');
+    if (placeholder) {
+      const virtualLabel = document.createElement('label');
+      virtualLabel.textContent = placeholder;
+      return virtualLabel;
+    }
   }
 
   return null;

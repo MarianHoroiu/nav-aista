@@ -37,18 +37,22 @@ const Popup: React.FC = () => {
           activeTab.id,
           { action: 'analyzeDropdowns' },
           response => {
+            // Check for chrome runtime errors (which could indicate content script not loaded)
+            const error = chrome.runtime.lastError;
+            if (error) {
+              setIsAnalyzing(false);
+              return;
+            }
+
             setIsAnalyzing(false);
 
             if (response && response.dropdowns) {
               setDropdowns(response.dropdowns);
-            } else {
-              console.error('No dropdown data received');
             }
           }
         );
       } else {
         setIsAnalyzing(false);
-        console.error('No active tab found');
       }
     });
   };
