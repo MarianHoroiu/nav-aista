@@ -5,6 +5,8 @@
  * It can access and modify the DOM of the page.
  */
 
+import { processTargetKendoSelects, getTargetLabels } from '../utils/kendo-select-manager';
+
 import { PageType, shouldActivate, detectPageType, reportPageInformation } from './detection';
 import * as dom from './dom';
 import * as observers from './observers';
@@ -23,13 +25,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // Handle the analyzeDropdowns message from popup
   if (message.action === 'analyzeDropdowns') {
     try {
-      const dropdowns = findAllDropdowns();
-      sendResponse({ dropdowns: dropdowns });
+      // Use async/await with Promise to handle the asynchronous processDropdowns method
+      processDropdowns()
+        .then(dropdowns => {
+          sendResponse({ dropdowns: dropdowns });
+        })
+        .catch(error => {
+          console.error('Content: Error analyzing dropdowns:', error);
+          sendResponse({ dropdowns: [] });
+        });
+
+      return true; // Indicates we'll respond asynchronously
     } catch (error) {
       console.error('Content: Error analyzing dropdowns:', error);
       sendResponse({ dropdowns: [] });
+      return true;
     }
-    return true;
   }
 
   return true;
@@ -492,6 +503,59 @@ function findAllDropdowns(): DropdownInfo[] {
     console.error('Content: Error in findAllDropdowns:', error);
     return [];
   }
+}
+
+/**
+ * Process all dropdowns on the page, including Kendo UI components
+ */
+async function processDropdowns(): Promise<DropdownInfo[]> {
+  console.log('Starting dropdown processing...');
+
+  // Get and log the target labels we're looking for
+  const targetLabels = getTargetLabels();
+  console.log('Processing target labels:', targetLabels.join(', '));
+
+  // Process target Kendo selects to get their data
+  const kendoSelectData = await processTargetKendoSelects();
+  console.log('Kendo select data:', kendoSelectData);
+
+  // Convert Kendo data to DropdownInfo format
+  const kendoDropdowns: DropdownInfo[] = Object.entries(kendoSelectData).map(([label, options]) => {
+    return {
+      title: label,
+      id: '',
+      name: '',
+      options: options.map(opt => ({
+        value: opt.value,
+        text: opt.text,
+        selected: false,
+      })),
+      isKendo: true,
+    };
+  });
+
+  // For non-target dropdowns, use the regular method
+  const regularDropdowns = findAllDropdowns();
+
+  // Filter out regular dropdowns that match our target labels to avoid duplication
+  const filteredRegularDropdowns = regularDropdowns.filter(dropdown => {
+    // Check if this dropdown matches any of our target labels
+    const isTargetDropdown = targetLabels.some(
+      targetLabel =>
+        dropdown.title.toLowerCase().includes(targetLabel.toLowerCase()) ||
+        targetLabel.toLowerCase().includes(dropdown.title.toLowerCase())
+    );
+
+    // Keep only non-target dropdowns from the regular list
+    return !isTargetDropdown;
+  });
+
+  console.log(
+    `Found ${kendoDropdowns.length} target Kendo dropdowns and ${filteredRegularDropdowns.length} other dropdowns`
+  );
+
+  // Return the combined list with target dropdowns first
+  return [...kendoDropdowns, ...filteredRegularDropdowns];
 }
 
 // Start initialization when the DOM is ready

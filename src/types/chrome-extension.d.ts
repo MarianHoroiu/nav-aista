@@ -1,6 +1,20 @@
 /// <reference types="chrome" />
 
-import { DropdownAnalysis } from '../content-scripts/dom-analyzer';
+// Define our own DropdownAnalysis to avoid import errors
+export interface DropdownOption {
+  value: string;
+  text: string;
+  selected: boolean;
+}
+
+export interface DropdownAnalysis {
+  element?: HTMLSelectElement;
+  title: string;
+  id: string | null;
+  name: string;
+  options: DropdownOption[];
+  isKendo?: boolean;
+}
 
 // Message interfaces for better type safety
 export interface AnalyzeDropdownsMessage {
