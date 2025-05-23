@@ -36,9 +36,27 @@ export interface AutocompleteInputsResponse {
   message?: string;
 }
 
+// Add interface for trigger search message
+export interface TriggerSearchMessage {
+  action: 'triggerSearch';
+}
+
+export interface TriggerSearchResponse {
+  success: boolean;
+  message?: string;
+}
+
 // Define a generic message type for better type safety
-export type ChromeMessage = AnalyzeDropdownsMessage | AutocompleteInputsMessage;
-export type ChromeResponse = AnalyzeDropdownsResponse | AutocompleteInputsResponse | undefined;
+export type ChromeMessage =
+  | AnalyzeDropdownsMessage
+  | AutocompleteInputsMessage
+  | TriggerSearchMessage;
+
+export type ChromeResponse =
+  | AnalyzeDropdownsResponse
+  | AutocompleteInputsResponse
+  | TriggerSearchResponse
+  | undefined;
 
 // Augment Chrome types to fix the sendMessage type error
 declare namespace chrome.tabs {
