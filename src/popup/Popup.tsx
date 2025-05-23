@@ -8,17 +8,10 @@ import {
   TriggerSearchMessage,
   DropdownAnalysis,
 } from '../types/chrome-extension';
+import { getDropdownTargetLabels } from '../utils/kendo-select-manager';
 
 // Date range options for publication date
 type DateRangeOption = 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'this-year';
-
-// Target labels that we're looking for
-const TARGET_LABELS = [
-  'Autoritatea contractanta',
-  'Domeniu de activitate',
-  'Modalitatea de atribuire',
-  'Cod sau denumire CPV',
-];
 
 const Popup: React.FC = () => {
   const [dropdowns, setDropdowns] = useState<DropdownAnalysis[]>([]);
@@ -26,6 +19,9 @@ const Popup: React.FC = () => {
   const [analysisStatus, setAnalysisStatus] = useState<string>('');
   const [autocompleteStatus, setAutocompleteStatus] = useState<string>('');
   const [dateRange, setDateRange] = useState<DateRangeOption>('this-month');
+
+  // Get target labels from centralized source
+  const DROPDOWN_TARGET_LABELS = getDropdownTargetLabels();
 
   // Helper function to calculate the start date based on selected range
   const calculateStartDate = (option: DateRangeOption): string => {
@@ -79,7 +75,7 @@ const Popup: React.FC = () => {
       const activeTab = tabs[0];
 
       if (activeTab?.id) {
-        setAnalysisStatus(`Looking for target dropdowns: ${TARGET_LABELS.join(', ')}...`);
+        setAnalysisStatus(`Looking for target dropdowns: ${DROPDOWN_TARGET_LABELS.join(', ')}...`);
 
         // Send message to content script
         const message: AnalyzeDropdownsMessage = {
@@ -105,11 +101,13 @@ const Popup: React.FC = () => {
 
               // Count target dropdowns by matching the title with target labels
               const targetDropdowns = response.dropdowns.filter(d =>
-                TARGET_LABELS.some(label => d.title.toLowerCase().includes(label.toLowerCase()))
+                DROPDOWN_TARGET_LABELS.some(label =>
+                  d.title.toLowerCase().includes(label.toLowerCase())
+                )
               );
 
               setAnalysisStatus(
-                `Analysis complete. Found ${targetDropdowns.length} of ${TARGET_LABELS.length} target dropdowns and ${response.dropdowns.length - targetDropdowns.length} other form fields.`
+                `Analysis complete. Found ${targetDropdowns.length} of ${DROPDOWN_TARGET_LABELS.length} target dropdowns and ${response.dropdowns.length - targetDropdowns.length} other form fields.`
               );
             } else {
               setAnalysisStatus('No dropdowns found or analysis failed');
@@ -308,7 +306,7 @@ const Popup: React.FC = () => {
                         Kendo UI
                       </span>
                     )}
-                    {TARGET_LABELS.some(label =>
+                    {DROPDOWN_TARGET_LABELS.some(label =>
                       dropdown.title.toLowerCase().includes(label.toLowerCase())
                     ) && (
                       <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded">

@@ -7,7 +7,7 @@
 
 import { AutocompleteInputsMessage, TriggerSearchMessage } from '../types/chrome-extension';
 import { fillEstimatedValueFrom, fillPublicationDateRange } from '../utils/form-autocompletion';
-import { processTargetKendoSelects, getTargetLabels } from '../utils/kendo-select-manager';
+import { processTargetKendoSelects, getDropdownTargetLabels } from '../utils/kendo-select-manager';
 
 import { PageType, shouldActivate, detectPageType, reportPageInformation } from './detection';
 import * as dom from './dom';
@@ -800,8 +800,8 @@ async function processDropdowns(): Promise<DropdownInfo[]> {
   console.log('Starting dropdown processing...');
 
   // Get and log the target labels we're looking for
-  const targetLabels = getTargetLabels();
-  console.log('Processing target labels:', targetLabels.join(', '));
+  const dropdownTargetLabels = getDropdownTargetLabels();
+  console.log('Processing dropdown target labels:', dropdownTargetLabels.join(', '));
 
   // Process target Kendo selects to get their data
   const kendoSelectData = await processTargetKendoSelects();
@@ -828,7 +828,7 @@ async function processDropdowns(): Promise<DropdownInfo[]> {
   // Filter out regular dropdowns that match our target labels to avoid duplication
   const filteredRegularDropdowns = regularDropdowns.filter(dropdown => {
     // Check if this dropdown matches any of our target labels
-    const isTargetDropdown = targetLabels.some(
+    const isTargetDropdown = dropdownTargetLabels.some(
       targetLabel =>
         dropdown.title.toLowerCase().includes(targetLabel.toLowerCase()) ||
         targetLabel.toLowerCase().includes(dropdown.title.toLowerCase())

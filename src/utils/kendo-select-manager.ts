@@ -17,7 +17,7 @@ class KendoSelectManager {
     input: '.k-input',
   };
 
-  private static readonly TARGET_LABELS = [
+  public static readonly DROPDOWN_TARGET_LABELS = [
     'Autoritatea contractanta',
     'Domeniu de activitate',
     'Modalitatea de atribuire',
@@ -63,7 +63,7 @@ class KendoSelectManager {
 
     // Filter select elements by target labels (case-insensitive)
     const targetSelectInfos = allSelectInfos.filter(selectInfo =>
-      this.TARGET_LABELS.some(
+      this.DROPDOWN_TARGET_LABELS.some(
         targetLabel =>
           selectInfo.label.toLowerCase().includes(targetLabel.toLowerCase()) ||
           targetLabel.toLowerCase().includes(selectInfo.label.toLowerCase())
@@ -73,7 +73,7 @@ class KendoSelectManager {
     console.log(
       `Found ${targetSelectInfos.length} target Kendo ComboBox elements out of ${allSelectInfos.length} total`
     );
-    console.log(`Target labels: ${this.TARGET_LABELS.join(', ')}`);
+    console.log(`Target labels: ${this.DROPDOWN_TARGET_LABELS.join(', ')}`);
     console.log(`Matched elements: ${targetSelectInfos.map(s => s.label).join(', ')}`);
 
     return targetSelectInfos;
@@ -328,11 +328,6 @@ export async function triggerTargetSelectsAndWait(): Promise<void> {
 /**
  * Function to get list of available target labels
  */
-export function getTargetLabels(): string[] {
-  return [
-    'Autoritatea contractanta',
-    'Domeniu de activitate',
-    'Modalitatea de atribuire',
-    'Cod sau denumire CPV ',
-  ];
+export function getDropdownTargetLabels(): string[] {
+  return KendoSelectManager.DROPDOWN_TARGET_LABELS;
 }
