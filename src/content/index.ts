@@ -5,6 +5,8 @@
  * It can access and modify the DOM of the page.
  */
 
+import { AutocompleteInputsMessage, TriggerSearchMessage } from '../types/chrome-extension';
+import { fillEstimatedValueFrom, fillPublicationDateRange } from '../utils/form-autocompletion';
 import { processTargetKendoSelects, getTargetLabels } from '../utils/kendo-select-manager';
 
 import { PageType, shouldActivate, detectPageType, reportPageInformation } from './detection';
@@ -25,7 +27,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // Handle the analyzeDropdowns message from popup
   if (message.action === 'analyzeDropdowns') {
     try {
-      // Use async/await with Promise to handle the asynchronous processDropdowns method
+      // Use async/await with Promise to handle the asynchronous findAllDropdowns method
       processDropdowns()
         .then(dropdowns => {
           sendResponse({ dropdowns: dropdowns });
@@ -43,8 +45,294 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
   }
 
+  // Handle the autocompleteInputs message from popup
+  if (message.action === 'autocompleteInputs') {
+    try {
+      console.log('Content: Starting input autocomplete process');
+      // Cast message to the proper type
+      const autocompleteMessage = message as AutocompleteInputsMessage;
+      // Use async/await with Promise to handle asynchronous autocomplete
+      autocompleteFormFields(autocompleteMessage.startDate)
+        .then(result => {
+          sendResponse({ success: true, message: result });
+        })
+        .catch(error => {
+          console.error('Content: Error autocompleting inputs:', error);
+          sendResponse({
+            success: false,
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
+        });
+
+      return true; // Indicates we'll respond asynchronously
+    } catch (error) {
+      console.error('Content: Error autocompleting inputs:', error);
+      sendResponse({
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return true;
+    }
+  }
+
+  // Handle the triggerSearch message from popup
+  if (message.action === 'triggerSearch') {
+    try {
+      console.log('Content: Starting search trigger process');
+      // Cast message to the proper type but no need to store it since we don't use any custom properties
+      message as TriggerSearchMessage;
+      // Import the triggerSearch function from form-autocompletion
+      import('../utils/form-autocompletion')
+        .then(async formAutocompletion => {
+          try {
+            // Call the triggerSearch function that will click the search/filter button
+            const result = await formAutocompletion.triggerSearch();
+            console.log('Content: Search trigger result:', result);
+            sendResponse({
+              success: result,
+              message: result ? 'Search triggered successfully' : 'Failed to trigger search',
+            });
+          } catch (error) {
+            console.error('Content: Error triggering search:', error);
+            sendResponse({
+              success: false,
+              message: error instanceof Error ? error.message : 'Unknown error during search',
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Content: Error importing form-autocompletion:', error);
+          sendResponse({
+            success: false,
+            message: 'Failed to load search functionality',
+          });
+        });
+
+      return true; // Indicates we'll respond asynchronously
+    } catch (error) {
+      console.error('Content: Error in triggerSearch handler:', error);
+      sendResponse({
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error in search handler',
+      });
+      return true;
+    }
+  }
+
   return true;
 });
+
+/**
+ * Autocomplete form fields on the page
+ * This function identifies input fields and fills them with appropriate values
+ * @param startDate Optional start date for date range fields (format: MM/DD/YYYY)
+ * @returns A message indicating the result of the autocomplete operation
+ */
+async function autocompleteFormFields(startDate?: string): Promise<string> {
+  try {
+    console.log('Content: Autocomplete process starting...');
+
+    // Step 1: Try to use our specialized ValueInputFiller for the estimated value field
+    const estimatedValueFilled = await fillEstimatedValueFrom();
+    console.log(`Content: Estimated value field filled: ${estimatedValueFilled}`);
+
+    // Step 2: Try to use our specialized DateInputFiller for publication date fields
+    // If a startDate was provided, import and use the custom date function
+    let publicationDatesFilled = false;
+
+    if (startDate) {
+      console.log(`Content: Using custom start date: ${startDate}`);
+      // Import the custom date fill function
+      const formAutocompletion = await import('../utils/form-autocompletion');
+      // Use the custom date range with the provided start date
+      publicationDatesFilled = await formAutocompletion.fillPublicationStartDate(startDate);
+
+      // For end date, use today as default
+      if (publicationDatesFilled) {
+        const today = new Date();
+        const endDateStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+        await formAutocompletion.fillPublicationEndDate(endDateStr);
+      }
+    } else {
+      // Use the default date range if no custom date provided
+      publicationDatesFilled = await fillPublicationDateRange();
+    }
+
+    console.log(`Content: Publication date fields filled: ${publicationDatesFilled}`);
+
+    let specializedFieldsCount = 0;
+    if (estimatedValueFilled) specializedFieldsCount++;
+    if (publicationDatesFilled) specializedFieldsCount += 2; // Two date fields
+
+    // Step 3: Find all text input fields on the page
+    const inputFields = document.querySelectorAll('input[type="text"], input:not([type])');
+    console.log(`Content: Found ${inputFields.length} input fields to potentially autocomplete`);
+
+    // Log all field names/ids for debugging
+    Array.from(inputFields).forEach((input, index) => {
+      const el = input as HTMLInputElement;
+      console.log(
+        `Field #${index}: id="${el.id}", name="${el.name}", placeholder="${el.placeholder}", value="${el.value}"`
+      );
+    });
+
+    let filledCount = 0;
+
+    // Step 4: Process each input field with more specific e-licitatie.ro patterns
+    for (const input of Array.from(inputFields)) {
+      const inputElement = input as HTMLInputElement;
+      const id = inputElement.id || '';
+      const name = inputElement.name || '';
+      const placeholder = inputElement.placeholder || '';
+      const label = findAssociatedLabel(inputElement);
+
+      // Skip if already filled
+      if (inputElement.value.trim()) {
+        console.log(
+          `Content: Skipping field "${id || name}" as it already has a value: "${inputElement.value}"`
+        );
+        continue;
+      }
+
+      // Determine what value to use based on field attributes and e-licitatie.ro specific patterns
+      let valueToFill = '';
+
+      // E-licitatie specific field patterns (add more based on your observations)
+      if (
+        placeholder.toLowerCase().includes('denumire') ||
+        label?.toLowerCase().includes('denumire') ||
+        name.toLowerCase().includes('name') ||
+        id.toLowerCase().includes('name')
+      ) {
+        valueToFill = 'Servicii IT';
+      } else if (
+        placeholder.toLowerCase().includes('cod') ||
+        label?.toLowerCase().includes('cod') ||
+        name.toLowerCase().includes('code') ||
+        id.toLowerCase().includes('code')
+      ) {
+        valueToFill = '72000000';
+      } else if (
+        placeholder.toLowerCase().includes('valoare') ||
+        label?.toLowerCase().includes('valoare') ||
+        name.toLowerCase().includes('value') ||
+        id.toLowerCase().includes('value')
+      ) {
+        valueToFill = '1000000';
+      } else if (
+        placeholder.toLowerCase().includes('observatii') ||
+        label?.toLowerCase().includes('observatii') ||
+        name.toLowerCase().includes('note') ||
+        id.toLowerCase().includes('note')
+      ) {
+        valueToFill = 'Automat completat';
+      }
+
+      // Fill the field if we have a value
+      if (valueToFill) {
+        try {
+          inputElement.focus();
+          await delay(50);
+
+          inputElement.value = valueToFill;
+
+          // Trigger events for AngularJS or React applications
+          const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+          inputElement.dispatchEvent(inputEvent);
+
+          const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+          inputElement.dispatchEvent(changeEvent);
+
+          // Try to trigger Angular digest if available
+          triggerAngularDigest(inputElement);
+
+          inputElement.blur();
+          filledCount++;
+
+          console.log(`Content: Filled field "${id || name}" with: "${valueToFill}"`);
+        } catch (fieldError) {
+          console.error(`Content: Error filling field "${id || name}":`, fieldError);
+        }
+      }
+    }
+
+    const totalFilled = filledCount + specializedFieldsCount;
+    return `Successfully filled ${totalFilled} of ${inputFields.length} input fields`;
+  } catch (error) {
+    console.error('Content: Error in autocompleteFormFields:', error);
+    throw new Error('Failed to autocomplete form fields');
+  }
+}
+
+/**
+ * Find the label associated with an input field
+ */
+function findAssociatedLabel(input: HTMLInputElement): string | null {
+  // Method 1: Look for label with 'for' attribute matching input id
+  if (input.id) {
+    const forLabel = document.querySelector(`label[for="${input.id}"]`);
+    if (forLabel) {
+      return forLabel.textContent?.trim() || null;
+    }
+  }
+
+  // Method 2: Look for parent container and find label within it
+  const container = input.closest('.form-group, .col-md-3, .col-md-4, .col-md-6, .form-field');
+  if (container) {
+    const label = container.querySelector('label');
+    if (label) {
+      return label.textContent?.trim() || null;
+    }
+  }
+
+  // Method 3: Check preceding siblings
+  let sibling = input.previousElementSibling;
+  while (sibling) {
+    if (sibling.tagName === 'LABEL') {
+      return sibling.textContent?.trim() || null;
+    }
+    sibling = sibling.previousElementSibling;
+  }
+
+  return null;
+}
+
+/**
+ * Try to trigger Angular digest cycle
+ */
+function triggerAngularDigest(element: HTMLElement): void {
+  try {
+    // Check if Angular is available and trigger digest
+    const windowWithAngular = window as Window & {
+      angular?: {
+        element: (el: Element) => {
+          scope: () => {
+            $apply: () => void;
+          };
+        };
+      };
+    };
+
+    const angularElement = windowWithAngular.angular?.element;
+    if (angularElement) {
+      const scope = angularElement(element).scope();
+      if (scope && scope.$apply) {
+        scope.$apply();
+        console.log('Content: ✓ Triggered AngularJS digest cycle');
+      }
+    }
+  } catch (e) {
+    // Ignore errors from Angular scope operations
+    console.log(`Content: ℹ️ Could not trigger AngularJS digest: ${e}`);
+  }
+}
+
+/**
+ * Utility delay function
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
  * Initialize the content script

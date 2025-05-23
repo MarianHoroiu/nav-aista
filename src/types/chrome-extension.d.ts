@@ -25,9 +25,20 @@ export interface AnalyzeDropdownsResponse {
   dropdowns?: DropdownAnalysis[];
 }
 
+// Add new interface for autocomplete inputs message
+export interface AutocompleteInputsMessage {
+  action: 'autocompleteInputs';
+  startDate?: string; // Optional start date parameter (format: MM/DD/YYYY)
+}
+
+export interface AutocompleteInputsResponse {
+  success: boolean;
+  message?: string;
+}
+
 // Define a generic message type for better type safety
-export type ChromeMessage = AnalyzeDropdownsMessage;
-export type ChromeResponse = AnalyzeDropdownsResponse | undefined;
+export type ChromeMessage = AnalyzeDropdownsMessage | AutocompleteInputsMessage;
+export type ChromeResponse = AnalyzeDropdownsResponse | AutocompleteInputsResponse | undefined;
 
 // Augment Chrome types to fix the sendMessage type error
 declare namespace chrome.tabs {
